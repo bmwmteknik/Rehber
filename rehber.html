@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rehber</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f14;
+    --surface: #1a1a24;
+    --surface2: #22223a;
+    --border: #2e2e4a;
+    --text: #f0f0ff;
+    --muted: #8888aa;
+    --accent1: #ff6b6b;
+    --accent3: #6bcb77;
+    --accent4: #4d96ff;
+    --accent5: #c77dff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ===== LOCK SCREEN ===== */
+  #lockScreen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 40px 20px;
+    background: radial-gradient(ellipse at 30% 20%, #1a1a3a 0%, var(--bg) 60%);
+  }
+  #lockScreen.hidden { display: none; }
+  #setupScreen {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 40px 20px;
+    background: radial-gradient(ellipse at 70% 80%, #0a1a2a 0%, var(--bg) 60%);
+  }
+  #setupScreen.visible { display: flex; }
+  #app { display: none; flex-direction: column; align-items: center; padding: 24px 16px 80px; }
+  #app.visible { display: flex; }
+
+  .lock-icon { font-size: 3.5rem; margin-bottom: 12px; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+
+  .lock-title {
+    font-size: 1.9rem; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 6px;
+  }
+  .lock-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 40px; text-align: center; }
+
+  .pin-dots { display: flex; gap: 16px; margin-bottom: 40px; }
+  .pin-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border); background: transparent; transition: all 0.15s;
+  }
+  .pin-dot.filled {
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    border-color: transparent; transform: scale(1.15);
+  }
+  .pin-dot.error { background: var(--accent1); border-color: transparent; animation: shake 0.4s ease; }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)}
+    60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}
+  }
+
+  .numpad { display: grid; grid-template-columns: repeat(3, 74px); gap: 12px; margin-bottom: 28px; }
+  .num-key {
+    width: 74px; height: 74px; border-radius: 50%;
+    border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--text); font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem; font-weight: 600; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.1s, border-color 0.15s;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+  }
+  .num-key:hover { background: var(--surface2); border-color: var(--accent4); }
+  .num-key:active { transform: scale(0.91); }
+  .num-key .sub { font-size: 0.48rem; color: var(--muted); letter-spacing: 1px; margin-top: 3px; font-weight: 400; }
+  .num-key.empty { border: none; background: transparent; cursor: default; pointer-events: none; }
+  .num-key.del { font-size: 1.2rem; }
+
+  .faceid-btn {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 28px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 50px;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s; margin-bottom: 20px;
+  }
+  .faceid-btn:hover { border-color: var(--accent4); background: var(--surface2); }
+
+  .lock-msg { font-size: 0.85rem; color: var(--muted); text-align: center; min-height: 20px; }
+  .lock-msg.err { color: var(--accent1); }
+  .lock-msg.ok { color: var(--accent3); }
+
+  /* ===== APP ===== */
+  .header { width: 100%; max-width: 480px; margin-bottom: 28px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .header h1 {
+    font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 4px;
+  }
+  .header p { color: var(--muted); font-size: 0.95rem; }
+  .lock-app-btn {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 10px 14px; color: var(--muted); cursor: pointer; font-size: 1.2rem;
+    transition: color 0.2s, border-color 0.2s; flex-shrink: 0; margin-top: 6px;
+  }
+  .lock-app-btn:hover { color: var(--text); border-color: var(--accent4); }
+
+  .search-wrap { width: 100%; max-width: 480px; position: relative; margin-bottom: 20px; }
+  .search-wrap input {
+    width: 100%; padding: 14px 20px 14px 48px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 1rem; outline: none; transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent4); }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+  .add-btn {
+    width: 100%; max-width: 480px; padding: 14px;
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    border: none; border-radius: 16px; color: #fff;
+    font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600; cursor: pointer;
+    margin-bottom: 28px; transition: opacity 0.2s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .add-btn:hover { opacity: 0.9; }
+  .add-btn:active { transform: scale(0.98); }
+
+  .overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 24px;
+    padding: 28px; width: 100%; max-width: 420px; animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(30px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .modal h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.82rem; color: var(--muted); font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field select {
+    width: 100%; padding: 12px 16px; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.98rem; outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent4); }
+  .field select option { background: var(--surface2); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-cancel {
+    flex: 1; padding: 12px; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--muted); font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: color 0.2s;
+  }
+  .btn-cancel:hover { color: var(--text); }
+  .btn-save {
+    flex: 2; padding: 12px; background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    border: none; border-radius: 12px; color: #fff; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-save:hover { opacity: 0.9; }
+
+  .contacts { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 10px; }
+  .section-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); padding: 6px 4px 2px; font-family: 'Space Mono', monospace; }
+  .contact-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px;
+    padding: 16px 18px; display: flex; align-items: center; gap: 14px;
+    transition: border-color 0.2s, transform 0.15s; animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .contact-card:hover { border-color: var(--accent4); transform: translateY(-1px); }
+  .avatar { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 800; flex-shrink: 0; }
+  .contact-info { flex: 1; min-width: 0; }
+  .contact-name { font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-phone { font-size: 0.85rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 2px; }
+  .contact-group { font-size: 0.72rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; flex-shrink: 0; }
+  .contact-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--surface2); color: var(--muted); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 0.95rem; transition: color 0.2s, border-color 0.2s; text-decoration: none;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--text); }
+  .icon-btn.call:hover { color: var(--accent3); border-color: var(--accent3); }
+  .icon-btn.del:hover { color: var(--accent1); border-color: var(--accent1); }
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  .stats { width: 100%; max-width: 480px; display: flex; gap: 10px; margin-bottom: 20px; }
+  .stat { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 12px; text-align: center; }
+  .stat .num { font-size: 1.5rem; font-weight: 800; font-family: 'Space Mono', monospace; background: linear-gradient(135deg, var(--accent4), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .stat .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- SETUP PIN -->
+<div id="setupScreen">
+  <div class="lock-icon">🔐</div>
+  <div class="lock-title">PIN Oluştur</div>
+  <div class="lock-sub" id="setupSub">Rehberiniz için 6 haneli bir PIN belirleyin</div>
+  <div class="pin-dots" id="setupDots">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="numpad" id="setupPad"></div>
+  <div class="lock-msg" id="setupMsg"></div>
+</div>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen">
+  <div class="lock-icon">🔒</div>
+  <div class="lock-title">Rehber</div>
+  <div class="lock-sub">Devam etmek için PIN'inizi girin</div>
+  <div class="pin-dots" id="lockDots">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="numpad" id="lockPad"></div>
+  <button class="faceid-btn" id="faceIdBtn" onclick="tryFaceId()">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 3H5a2 2 0 0 0-2 2v2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M17 21h2a2 2 0 0 0 2-2v-2"/>
+      <circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/>
+      <path d="M9 15s1 1.5 3 1.5 3-1.5 3-1.5"/>
+    </svg>
+    <span id="faceIdLabel">Face ID ile Aç</span>
+  </button>
+  <div class="lock-msg" id="lockMsg"></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="header">
+    <div>
+      <h1>📱 Rehber</h1>
+      <p>Kişilerinizi yönetin</p>
+    </div>
+    <button class="lock-app-btn" onclick="lockApp()">🔒</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="num" id="totalCount">0</div><div class="lbl">Toplam</div></div>
+    <div class="stat"><div class="num" id="favCount">0</div><div class="lbl">Favori</div></div>
+    <div class="stat"><div class="num" id="groupCount">0</div><div class="lbl">Grup</div></div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="İsim veya numara ara..." oninput="render()">
+  </div>
+  <button class="add-btn" onclick="openModal()">＋ Yeni Kişi Ekle</button>
+  <div class="contacts" id="contactList"></div>
+</div>
+
+<!-- Contact Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Yeni Kişi</h2>
+    <div class="field"><label>Ad Soyad</label><input type="text" id="fName" placeholder="Örn: Ahmet Yılmaz"></div>
+    <div class="field"><label>Telefon</label><input type="tel" id="fPhone" placeholder="05xx xxx xx xx"></div>
+    <div class="field"><label>E-posta (isteğe bağlı)</label><input type="email" id="fEmail" placeholder="ornek@mail.com"></div>
+    <div class="field">
+      <label>Grup</label>
+      <select id="fGroup">
+        <option value="Genel">Genel</option>
+        <option value="Aile">Aile</option>
+        <option value="İş">İş</option>
+        <option value="Arkadaş">Arkadaş</option>
+        <option value="Favori">⭐ Favori</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">İptal</button>
+      <button class="btn-save" onclick="saveContact()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff9f1c','#00b4d8','#f72585','#06d6a0','#fb8500'];
+const GROUP_COLORS = {
+  'Aile':{bg:'#ff6b6b22',text:'#ff6b6b'}, 'İş':{bg:'#4d96ff22',text:'#4d96ff'},
+  'Arkadaş':{bg:'#6bcb7722',text:'#6bcb77'}, 'Favori':{bg:'#ffd93d22',text:'#ffd93d'},
+  'Genel':{bg:'#8888aa22',text:'#8888aa'}
+};
+const NUMKEYS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+const NUMSUB  = ['','ABC','DEF','GHI','JKL','MNO','PQRS','TUV','WXYZ','','',''];
+
+// ===== STATE =====
+let contacts = JSON.parse(localStorage.getItem('rehber_contacts') || '[]');
+let editId = null;
+let storedPin = localStorage.getItem('rehber_pin');
+let biometricRegistered = localStorage.getItem('rehber_biometric') === '1';
+
+// Setup flow
+let setupStep = 1, firstPin = '', setupInput = '';
+// Lock flow
+let lockInput = '', lockAttempts = 0;
+
+// ===== HELPERS =====
+function saveData() { localStorage.setItem('rehber_contacts', JSON.stringify(contacts)); }
+function colorFor(n) { let h=0; for(let c of n) h=(h*31+c.charCodeAt(0))%COLORS.length; return COLORS[h]; }
+function initials(n) { return n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+
+function setDots(containerId, filled, state='') {
+  document.querySelectorAll(`#${containerId} .pin-dot`).forEach((d,i) => {
+    d.className = 'pin-dot' + (i < filled ? ' filled' : '') + (state ? ' '+state : '');
+  });
+}
+
+// ===== NUMPAD BUILDER =====
+function buildNumpad(id, onDigit, onDel) {
+  const pad = document.getElementById(id);
+  pad.innerHTML = '';
+  NUMKEYS.forEach((k, i) => {
+    const btn = document.createElement('button');
+    if (k === '') {
+      btn.className = 'num-key empty';
+    } else if (k === '⌫') {
+      btn.className = 'num-key del';
+      btn.textContent = '⌫';
+      btn.onclick = onDel;
+    } else {
+      btn.className = 'num-key';
+      btn.innerHTML = k + (NUMSUB[i] ? `<span class="sub">${NUMSUB[i]}</span>` : '');
+      btn.onclick = () => onDigit(k);
+    }
+    pad.appendChild(btn);
+  });
+}
+
+// ===== SETUP PIN =====
+function setupDigit(d) {
+  if (setupInput.length >= 6) return;
+  setupInput += d;
+  setDots('setupDots', setupInput.length);
+  if (setupInput.length < 6) return;
+  setTimeout(() => {
+    if (setupStep === 1) {
+      firstPin = setupInput; setupInput = '';
+      setDots('setupDots', 0);
+      document.getElementById('setupSub').textContent = 'PIN\'inizi tekrar girin';
+      document.getElementById('setupMsg').textContent = '';
+      setupStep = 2;
+    } else {
+      if (setupInput === firstPin) {
+        localStorage.setItem('rehber_pin', firstPin);
+        storedPin = firstPin;
+        const m = document.getElementById('setupMsg');
+        m.className = 'lock-msg ok'; m.textContent = '✓ PIN kaydedildi!';
+        setTimeout(showLock, 700);
+      } else {
+        setupInput = ''; setupStep = 1; firstPin = '';
+        setDots('setupDots', 0, 'error');
+        const m = document.getElementById('setupMsg');
+        m.className = 'lock-msg err'; m.textContent = 'PIN\'ler eşleşmedi, tekrar deneyin';
+        document.getElementById('setupSub').textContent = 'Yeni 6 haneli PIN girin';
+        setTimeout(() => setDots('setupDots', 0), 600);
+      }
+    }
+  }, 120);
+}
+function setupDel() { if (!setupInput.length) return; setupInput=setupInput.slice(0,-1); setDots('setupDots', setupInput.length); }
+
+// ===== LOCK =====
+function lockDigit(d) {
+  if (lockInput.length >= 6) return;
+  lockInput += d;
+  setDots('lockDots', lockInput.length);
+  if (lockInput.length < 6) return;
+  setTimeout(() => {
+    if (lockInput === storedPin) {
+      lockAttempts = 0;
+      showApp();
+    } else {
+      lockAttempts++;
+      lockInput = '';
+      setDots('lockDots', 0, 'error');
+      const m = document.getElementById('lockMsg');
+      m.className = 'lock-msg err';
+      m.textContent = lockAttempts >= 5
+        ? `${lockAttempts}. yanlış deneme! Dikkatli olun.`
+        : 'Yanlış PIN, tekrar deneyin';
+      setTimeout(() => { setDots('lockDots', 0); m.textContent = ''; }, 700);
+    }
+  }, 120);
+}
+function lockDel() { if (!lockInput.length) return; lockInput=lockInput.slice(0,-1); setDots('lockDots', lockInput.length); }
+
+// ===== FACE ID =====
+async function tryFaceId() {
+  const msg = document.getElementById('lockMsg');
+  if (!window.PublicKeyCredential) {
+    msg.className = 'lock-msg err';
+    msg.textContent = 'Bu tarayıcı biyometrik kimlik doğrulamayı desteklemiyor';
+    return;
+  }
+  try {
+    msg.className = 'lock-msg'; msg.textContent = '👁 Face ID bekleniyor...';
+    if (!biometricRegistered) {
+      const cred = await navigator.credentials.create({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: 'Rehber Uygulaması' },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'rehber@user', displayName: 'Rehber' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 30000
+      }});
+      localStorage.setItem('rehber_biometric', '1');
+      localStorage.setItem('rehber_cred_id', btoa(String.fromCharCode(...new Uint8Array(cred.rawId))));
+      biometricRegistered = true;
+      document.getElementById('faceIdLabel').textContent = 'Face ID ile Aç';
+      msg.className = 'lock-msg ok'; msg.textContent = '✓ Face ID kaydedildi!';
+      setTimeout(showApp, 600);
+    } else {
+      const rawId = Uint8Array.from(atob(localStorage.getItem('rehber_cred_id')), c => c.charCodeAt(0));
+      await navigator.credentials.get({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type: 'public-key', id: rawId }],
+        userVerification: 'required', timeout: 30000
+      }});
+      msg.className = 'lock-msg ok'; msg.textContent = '✓ Face ID onaylandı!';
+      setTimeout(showApp, 400);
+    }
+  } catch(e) {
+    msg.className = 'lock-msg err';
+    msg.textContent = e.name === 'NotAllowedError' ? 'Face ID iptal edildi' : 'Face ID başarısız — PIN deneyin';
+    setTimeout(() => { msg.textContent = ''; }, 2200);
+  }
+}
+
+// ===== ROUTING =====
+function showSetup() {
+  document.getElementById('setupScreen').classList.add('visible');
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('visible');
+  buildNumpad('setupPad', setupDigit, setupDel);
+}
+function showLock() {
+  lockInput = '';
+  document.getElementById('setupScreen').classList.remove('visible');
+  document.getElementById('lockScreen').classList.remove('hidden');
+  document.getElementById('app').classList.remove('visible');
+  setDots('lockDots', 0);
+  document.getElementById('lockMsg').textContent = '';
+  document.getElementById('faceIdLabel').textContent = biometricRegistered ? 'Face ID ile Aç' : 'Face ID Kaydet & Aç';
+  buildNumpad('lockPad', lockDigit, lockDel);
+}
+function showApp() {
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('setupScreen').classList.remove('visible');
+  document.getElementById('app').classList.add('visible');
+  render();
+}
+function lockApp() { lockInput = ''; showLock(); }
+
+// ===== CONTACTS =====
+function openModal(id = null) {
+  editId = id;
+  if (id !== null) {
+    const c = contacts.find(x => x.id === id);
+    document.getElementById('fName').value = c.name;
+    document.getElementById('fPhone').value = c.phone;
+    document.getElementById('fEmail').value = c.email || '';
+    document.getElementById('fGroup').value = c.group;
+    document.getElementById('modalTitle').textContent = 'Kişiyi Düzenle';
+  } else {
+    ['fName','fPhone','fEmail'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('fGroup').value = 'Genel';
+    document.getElementById('modalTitle').textContent = 'Yeni Kişi';
+  }
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('fName').focus(), 100);
+}
+function closeModal() { document.getElementById('overlay').classList.remove('open'); editId = null; }
+function saveContact() {
+  const name = document.getElementById('fName').value.trim();
+  const phone = document.getElementById('fPhone').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+  const group = document.getElementById('fGroup').value;
+  if (!name || !phone) { alert('Ad ve telefon zorunlu!'); return; }
+  if (editId !== null) {
+    const idx = contacts.findIndex(x => x.id === editId);
+    contacts[idx] = { ...contacts[idx], name, phone, email, group };
+  } else {
+    contacts.push({ id: Date.now(), name, phone, email, group });
+  }
+  saveData(); closeModal(); render();
+}
+function deleteContact(id) {
+  if (!confirm('Bu kişi silinsin mi?')) return;
+  contacts = contacts.filter(x => x.id !== id);
+  saveData(); render();
+}
+
+function render() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = contacts.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
+  filtered.sort((a,b) => a.name.localeCompare(b.name, 'tr'));
+  document.getElementById('totalCount').textContent = contacts.length;
+  document.getElementById('favCount').textContent = contacts.filter(c => c.group === 'Favori').length;
+  document.getElementById('groupCount').textContent = new Set(contacts.map(c => c.group)).size;
+  const list = document.getElementById('contactList');
+  list.innerHTML = '';
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><div class="icon">👤</div><p>${q?'Sonuç bulunamadı.':'Henüz kişi eklenmedi.'}</p></div>`;
+    return;
+  }
+  let lastLetter = '';
+  filtered.forEach(c => {
+    const letter = c.name[0].toUpperCase();
+    if (letter !== lastLetter) {
+      const lbl = document.createElement('div');
+      lbl.className = 'section-label'; lbl.textContent = letter;
+      list.appendChild(lbl); lastLetter = letter;
+    }
+    const gc = GROUP_COLORS[c.group] || GROUP_COLORS['Genel'];
+    const col = colorFor(c.name);
+    const card = document.createElement('div');
+    card.className = 'contact-card';
+    card.innerHTML = `
+      <div class="avatar" style="background:${col}22;color:${col}">${initials(c.name)}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-phone">${c.phone}</div>
+      </div>
+      <span class="contact-group" style="background:${gc.bg};color:${gc.text}">${c.group}</span>
+      <div class="contact-actions">
+        <a href="tel:${c.phone}" class="icon-btn call" title="Ara">📞</a>
+        <button class="icon-btn" onclick="openModal(${c.id})" title="Düzenle">✏️</button>
+        <button class="icon-btn del" onclick="deleteContact(${c.id})" title="Sil">🗑️</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+document.getElementById('overlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && document.getElementById('overlay').classList.contains('open')) saveContact();
+});
+
+// ===== AUTO-LOCK =====
+// Uygulama arka plana geçince veya sekme/pencere gizlenince otomatik kilitle
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && document.getElementById('app').classList.contains('visible')) {
+    lockApp();
+  }
+});
+// Mobil: sayfa odağı kaybolunca (başka uygulamaya geçince)
+window.addEventListener('blur', () => {
+  if (document.getElementById('app').classList.contains('visible')) {
+    lockApp();
+  }
+});
+
+// ===== INIT =====
+storedPin ? showLock() : showSetup();
+</script>
+</body>
+</html>
