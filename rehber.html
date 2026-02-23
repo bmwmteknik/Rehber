@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rehber</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f14;
+    --surface: #1a1a24;
+    --surface2: #22223a;
+    --border: #2e2e4a;
+    --text: #f0f0ff;
+    --muted: #8888aa;
+    --accent1: #ff6b6b;
+    --accent3: #6bcb77;
+    --accent4: #4d96ff;
+    --accent5: #c77dff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ===== LOCK SCREEN ===== */
+  #lockScreen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 40px 20px;
+    background: radial-gradient(ellipse at 30% 20%, #1a1a3a 0%, var(--bg) 60%);
+  }
+  #lockScreen.hidden { display: none; }
+  #setupScreen {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 40px 20px;
+    background: radial-gradient(ellipse at 70% 80%, #0a1a2a 0%, var(--bg) 60%);
+  }
+  #setupScreen.visible { display: flex; }
+  #app { display: none; flex-direction: column; align-items: center; padding: 24px 16px 80px; }
+  #app.visible { display: flex; }
+
+  .lock-icon { font-size: 3.5rem; margin-bottom: 12px; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+
+  .lock-title {
+    font-size: 1.9rem; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 6px;
+  }
+  .lock-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 40px; text-align: center; }
+
+  .pin-dots { display: flex; gap: 16px; margin-bottom: 40px; }
+  .pin-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border); background: transparent; transition: all 0.15s;
+  }
+  .pin-dot.filled {
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    border-color: transparent; transform: scale(1.15);
+  }
+  .pin-dot.error { background: var(--accent1); border-color: transparent; animation: shake 0.4s ease; }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)}
+    60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}
+  }
+
+  .numpad { display: grid; grid-template-columns: repeat(3, 74px); gap: 12px; margin-bottom: 28px; }
+  .num-key {
+    width: 74px; height: 74px; border-radius: 50%;
+    border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--text); font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem; font-weight: 600; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.1s, border-color 0.15s;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+  }
+  .num-key:hover { background: var(--surface2); border-color: var(--accent4); }
+  .num-key:active { transform: scale(0.91); }
+  .num-key .sub { font-size: 0.48rem; color: var(--muted); letter-spacing: 1px; margin-top: 3px; font-weight: 400; }
+  .num-key.empty { border: none; background: transparent; cursor: default; pointer-events: none; }
+  .num-key.del { font-size: 1.2rem; }
+
+  .faceid-btn {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 28px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 50px;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s; margin-bottom: 20px;
+  }
+  .faceid-btn:hover { border-color: var(--accent4); background: var(--surface2); }
+
+  .lock-msg { font-size: 0.85rem; color: var(--muted); text-align: center; min-height: 20px; }
+  .lock-msg.err { color: var(--accent1); }
+  .lock-msg.ok { color: var(--accent3); }
+
+  /* ===== APP ===== */
+  .header { width: 100%; max-width: 480px; margin-bottom: 28px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .header h1 {
+    font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 4px;
+  }
+  .header p { color: var(--muted); font-size: 0.95rem; }
+  .lock-app-btn {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 10px 14px; color: var(--muted); cursor: pointer; font-size: 1.2rem;
+    transition: color 0.2s, border-color 0.2s; flex-shrink: 0; margin-top: 6px;
+  }
+  .lock-app-btn:hover { color: var(--text); border-color: var(--accent4); }
+
+  .search-wrap { width: 100%; max-width: 480px; position: relative; margin-bottom: 20px; }
+  .search-wrap input {
+    width: 100%; padding: 14px 20px 14px 48px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 1rem; outline: none; transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent4); }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+  .add-btn {
+    width: 100%; max-width: 480px; padding: 14px;
+    background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    border: none; border-radius: 16px; color: #fff;
+    font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600; cursor: pointer;
+    margin-bottom: 28px; transition: opacity 0.2s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .add-btn:hover { opacity: 0.9; }
+  .add-btn:active { transform: scale(0.98); }
+
+  .export-btn {
+    width: 100%; max-width: 480px; padding: 13px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px;
+    color: var(--muted); font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; margin-bottom: 20px; transition: color 0.2s, border-color 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .export-btn:hover { color: var(--accent3); border-color: var(--accent3); }
+
+  .overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 24px;
+    padding: 28px; width: 100%; max-width: 420px; animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(30px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .modal h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.82rem; color: var(--muted); font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field select {
+    width: 100%; padding: 12px 16px; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.98rem; outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent4); }
+  .field select option { background: var(--surface2); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-cancel {
+    flex: 1; padding: 12px; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--muted); font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: color 0.2s;
+  }
+  .btn-cancel:hover { color: var(--text); }
+  .btn-save {
+    flex: 2; padding: 12px; background: linear-gradient(135deg, var(--accent4), var(--accent5));
+    border: none; border-radius: 12px; color: #fff; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-save:hover { opacity: 0.9; }
+
+  .contacts { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 10px; }
+  .section-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); padding: 6px 4px 2px; font-family: 'Space Mono', monospace; }
+  .contact-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px;
+    padding: 16px 18px; display: flex; align-items: center; gap: 14px;
+    transition: border-color 0.2s, transform 0.15s; animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .contact-card:hover { border-color: var(--accent4); transform: translateY(-1px); }
+  .avatar { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 800; flex-shrink: 0; }
+  .contact-info { flex: 1; min-width: 0; }
+  .contact-name { font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-phone { font-size: 0.85rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 2px; }
+  .contact-phone:hover { color: var(--accent3); text-decoration: underline !important; }
+  .contact-group { font-size: 0.72rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; flex-shrink: 0; }
+  .contact-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--surface2); color: var(--muted); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 0.95rem; transition: color 0.2s, border-color 0.2s; text-decoration: none;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--text); }
+  .icon-btn.call:hover { color: var(--accent3); border-color: var(--accent3); }
+  .icon-btn.wa:hover { color: #25d366; border-color: #25d366; }
+  .icon-btn.del:hover { color: var(--accent1); border-color: var(--accent1); }
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  .stats { width: 100%; max-width: 480px; display: flex; gap: 10px; margin-bottom: 20px; }
+  .stat { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 12px; text-align: center; }
+  .stat .num { font-size: 1.5rem; font-weight: 800; font-family: 'Space Mono', monospace; background: linear-gradient(135deg, var(--accent4), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .stat .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  /* ===== TAB BAR ===== */
+  .tab-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1.5px solid var(--border);
+    display: flex; z-index: 50; padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .tab-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-family: 'Outfit', sans-serif; font-size: 0.7rem; font-weight: 600;
+    padding: 6px 0; transition: color 0.2s; letter-spacing: 0.3px;
+  }
+  .tab-btn .tab-icon { font-size: 1.3rem; transition: transform 0.2s; }
+  .tab-btn.active { color: var(--accent4); }
+  .tab-btn.active .tab-icon { transform: scale(1.15); }
+
+  /* ===== NOTES ===== */
+  #notesTab { display: none; flex-direction: column; align-items: center; padding: 24px 16px 100px; }
+  #notesTab.visible { display: flex; }
+
+  .notes-header { width: 100%; max-width: 480px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+  .notes-header h2 { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #ffd93d, #ff9f1c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+  .note-add-btn {
+    padding: 10px 18px; background: linear-gradient(135deg, #ffd93d, #ff9f1c);
+    border: none; border-radius: 12px; color: #111; font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+  }
+  .note-add-btn:hover { opacity: 0.85; }
+
+  .notes-list { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; }
+
+  .note-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px;
+    padding: 18px 20px; cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s; animation: fadeIn 0.3s ease;
+  }
+  .note-card:hover { border-color: #ffd93d; transform: translateY(-1px); }
+  .note-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .note-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+  .note-date { font-size: 0.72rem; color: var(--muted); font-family: 'Space Mono', monospace; white-space: nowrap; margin-top: 3px; }
+  .note-preview { font-size: 0.88rem; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .note-del-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem;
+    padding: 2px 6px; border-radius: 8px; transition: color 0.2s; flex-shrink: 0;
+  }
+  .note-del-btn:hover { color: var(--accent1); }
+
+  /* Note editor modal */
+  #noteOverlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center; padding: 20px;
+  }
+  #noteOverlay.open { display: flex; }
+  .note-modal {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 24px;
+    padding: 24px; width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 14px;
+    animation: slideUp 0.25s ease; max-height: 90vh;
+  }
+  .note-modal-header { display: flex; align-items: center; justify-content: space-between; }
+  .note-modal-header h3 { font-size: 1.2rem; font-weight: 700; }
+  .note-modal-close { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .note-modal-close:hover { color: var(--text); }
+  #noteInputTitle {
+    width: 100%; padding: 12px 16px; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600; outline: none;
+    transition: border-color 0.2s;
+  }
+  #noteInputTitle:focus { border-color: #ffd93d; }
+  #noteInputBody {
+    width: 100%; min-height: 180px; padding: 14px 16px; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.95rem; outline: none;
+    transition: border-color 0.2s; resize: vertical; line-height: 1.6;
+  }
+  #noteInputBody:focus { border-color: #ffd93d; }
+  .note-save-btn {
+    padding: 13px; background: linear-gradient(135deg, #ffd93d, #ff9f1c);
+    border: none; border-radius: 12px; color: #111; font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+  }
+  .note-save-btn:hover { opacity: 0.88; }
+
+</head>
+<body>
+
+<!-- SETUP PIN -->
+<div id="setupScreen">
+  <div class="lock-icon">🔐</div>
+  <div class="lock-title">PIN Oluştur</div>
+  <div class="lock-sub" id="setupSub">Rehberiniz için 6 haneli bir PIN belirleyin</div>
+  <div class="pin-dots" id="setupDots">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="numpad" id="setupPad"></div>
+  <div class="lock-msg" id="setupMsg"></div>
+</div>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen">
+  <div class="lock-icon">🔒</div>
+  <div class="lock-title">Rehber</div>
+  <div class="lock-sub">Devam etmek için PIN'inizi girin</div>
+  <div class="pin-dots" id="lockDots">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="numpad" id="lockPad"></div>
+  <button class="faceid-btn" id="faceIdBtn" onclick="tryFaceId()">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 3H5a2 2 0 0 0-2 2v2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M17 21h2a2 2 0 0 0 2-2v-2"/>
+      <circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/>
+      <path d="M9 15s1 1.5 3 1.5 3-1.5 3-1.5"/>
+    </svg>
+    <span id="faceIdLabel">Face ID ile Aç</span>
+  </button>
+  <div class="lock-msg" id="lockMsg"></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="header">
+    <div>
+      <h1>📱 Rehber</h1>
+      <p>Kişilerinizi yönetin</p>
+    </div>
+    <button class="lock-app-btn" onclick="lockApp()">🔒</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="num" id="totalCount">0</div><div class="lbl">Toplam</div></div>
+    <div class="stat"><div class="num" id="favCount">0</div><div class="lbl">Favori</div></div>
+    <div class="stat"><div class="num" id="groupCount">0</div><div class="lbl">Grup</div></div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="İsim veya numara ara..." oninput="render()">
+  </div>
+  <button class="add-btn" onclick="openModal()">＋ Yeni Kişi Ekle</button>
+  <button class="export-btn" onclick="exportContacts()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Kişileri Dışa Aktar
+  </button>
+  <div class="contacts" id="contactList"></div>
+</div>
+
+<!-- NOTES TAB -->
+<div id="notesTab">
+  <div class="notes-header">
+    <h2>📝 Notlar</h2>
+    <button class="note-add-btn" onclick="openNoteModal()">＋ Yeni Not</button>
+  </div>
+  <div class="notes-list" id="notesList"></div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar" id="tabBar" style="display:none">
+  <button class="tab-btn active" id="tabContacts" onclick="switchTab('contacts')">
+    <span class="tab-icon">👥</span>Rehber
+  </button>
+  <button class="tab-btn" id="tabNotes" onclick="switchTab('notes')">
+    <span class="tab-icon">📝</span>Notlar
+  </button>
+</div>
+
+<!-- Note Modal -->
+<div id="noteOverlay">
+  <div class="note-modal">
+    <div class="note-modal-header">
+      <h3 id="noteModalTitle">Yeni Not</h3>
+      <button class="note-modal-close" onclick="closeNoteModal()">✕</button>
+    </div>
+    <input type="text" id="noteInputTitle" placeholder="Başlık...">
+    <textarea id="noteInputBody" placeholder="Notunuzu buraya yazın..."></textarea>
+    <button class="note-save-btn" onclick="saveNote()">Kaydet</button>
+  </div>
+</div>
+
+<!-- Contact Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Yeni Kişi</h2>
+    <div class="field"><label>Ad Soyad</label><input type="text" id="fName" placeholder="Örn: Ahmet Yılmaz"></div>
+    <div class="field"><label>Telefon</label><input type="tel" id="fPhone" placeholder="05xx xxx xx xx"></div>
+    <div class="field"><label>E-posta (isteğe bağlı)</label><input type="email" id="fEmail" placeholder="ornek@mail.com"></div>
+    <div class="field">
+      <label>Grup</label>
+      <select id="fGroup">
+        <option value="Genel">Genel</option>
+        <option value="Aile">Aile</option>
+        <option value="İş">İş</option>
+        <option value="Arkadaş">Arkadaş</option>
+        <option value="Favori">⭐ Favori</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">İptal</button>
+      <button class="btn-save" onclick="saveContact()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff9f1c','#00b4d8','#f72585','#06d6a0','#fb8500'];
+const GROUP_COLORS = {
+  'Aile':{bg:'#ff6b6b22',text:'#ff6b6b'}, 'İş':{bg:'#4d96ff22',text:'#4d96ff'},
+  'Arkadaş':{bg:'#6bcb7722',text:'#6bcb77'}, 'Favori':{bg:'#ffd93d22',text:'#ffd93d'},
+  'Genel':{bg:'#8888aa22',text:'#8888aa'}
+};
+const NUMKEYS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+const NUMSUB  = ['','ABC','DEF','GHI','JKL','MNO','PQRS','TUV','WXYZ','','',''];
+
+// ===== STATE =====
+let contacts = JSON.parse(localStorage.getItem('rehber_contacts') || '[]');
+let editId = null;
+let storedPin = localStorage.getItem('rehber_pin');
+let biometricRegistered = localStorage.getItem('rehber_biometric') === '1';
+
+// Setup flow
+let setupStep = 1, firstPin = '', setupInput = '';
+// Lock flow
+let lockInput = '', lockAttempts = 0;
+
+// ===== HELPERS =====
+function saveData() { localStorage.setItem('rehber_contacts', JSON.stringify(contacts)); }
+function colorFor(n) { let h=0; for(let c of n) h=(h*31+c.charCodeAt(0))%COLORS.length; return COLORS[h]; }
+function initials(n) { return n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+
+function setDots(containerId, filled, state='') {
+  document.querySelectorAll(`#${containerId} .pin-dot`).forEach((d,i) => {
+    d.className = 'pin-dot' + (i < filled ? ' filled' : '') + (state ? ' '+state : '');
+  });
+}
+
+// ===== NUMPAD BUILDER =====
+function buildNumpad(id, onDigit, onDel) {
+  const pad = document.getElementById(id);
+  pad.innerHTML = '';
+  NUMKEYS.forEach((k, i) => {
+    const btn = document.createElement('button');
+    if (k === '') {
+      btn.className = 'num-key empty';
+    } else if (k === '⌫') {
+      btn.className = 'num-key del';
+      btn.textContent = '⌫';
+      btn.onclick = onDel;
+    } else {
+      btn.className = 'num-key';
+      btn.innerHTML = k + (NUMSUB[i] ? `<span class="sub">${NUMSUB[i]}</span>` : '');
+      btn.onclick = () => onDigit(k);
+    }
+    pad.appendChild(btn);
+  });
+}
+
+// ===== SETUP PIN =====
+function setupDigit(d) {
+  if (setupInput.length >= 6) return;
+  setupInput += d;
+  setDots('setupDots', setupInput.length);
+  if (setupInput.length < 6) return;
+  setTimeout(() => {
+    if (setupStep === 1) {
+      firstPin = setupInput; setupInput = '';
+      setDots('setupDots', 0);
+      document.getElementById('setupSub').textContent = 'PIN\'inizi tekrar girin';
+      document.getElementById('setupMsg').textContent = '';
+      setupStep = 2;
+    } else {
+      if (setupInput === firstPin) {
+        localStorage.setItem('rehber_pin', firstPin);
+        storedPin = firstPin;
+        const m = document.getElementById('setupMsg');
+        m.className = 'lock-msg ok'; m.textContent = '✓ PIN kaydedildi!';
+        setTimeout(showLock, 700);
+      } else {
+        setupInput = ''; setupStep = 1; firstPin = '';
+        setDots('setupDots', 0, 'error');
+        const m = document.getElementById('setupMsg');
+        m.className = 'lock-msg err'; m.textContent = 'PIN\'ler eşleşmedi, tekrar deneyin';
+        document.getElementById('setupSub').textContent = 'Yeni 6 haneli PIN girin';
+        setTimeout(() => setDots('setupDots', 0), 600);
+      }
+    }
+  }, 120);
+}
+function setupDel() { if (!setupInput.length) return; setupInput=setupInput.slice(0,-1); setDots('setupDots', setupInput.length); }
+
+// ===== LOCK =====
+function lockDigit(d) {
+  if (lockInput.length >= 6) return;
+  lockInput += d;
+  setDots('lockDots', lockInput.length);
+  if (lockInput.length < 6) return;
+  setTimeout(() => {
+    if (lockInput === storedPin) {
+      lockAttempts = 0;
+      showApp();
+    } else {
+      lockAttempts++;
+      lockInput = '';
+      setDots('lockDots', 0, 'error');
+      const m = document.getElementById('lockMsg');
+      m.className = 'lock-msg err';
+      m.textContent = lockAttempts >= 5
+        ? `${lockAttempts}. yanlış deneme! Dikkatli olun.`
+        : 'Yanlış PIN, tekrar deneyin';
+      setTimeout(() => { setDots('lockDots', 0); m.textContent = ''; }, 700);
+    }
+  }, 120);
+}
+function lockDel() { if (!lockInput.length) return; lockInput=lockInput.slice(0,-1); setDots('lockDots', lockInput.length); }
+
+// ===== FACE ID =====
+async function tryFaceId() {
+  const msg = document.getElementById('lockMsg');
+  if (!window.PublicKeyCredential) {
+    msg.className = 'lock-msg err';
+    msg.textContent = 'Bu tarayıcı biyometrik kimlik doğrulamayı desteklemiyor';
+    return;
+  }
+  try {
+    msg.className = 'lock-msg'; msg.textContent = '👁 Face ID bekleniyor...';
+    if (!biometricRegistered) {
+      const cred = await navigator.credentials.create({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: 'Rehber Uygulaması' },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'rehber@user', displayName: 'Rehber' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 30000
+      }});
+      localStorage.setItem('rehber_biometric', '1');
+      localStorage.setItem('rehber_cred_id', btoa(String.fromCharCode(...new Uint8Array(cred.rawId))));
+      biometricRegistered = true;
+      document.getElementById('faceIdLabel').textContent = 'Face ID ile Aç';
+      msg.className = 'lock-msg ok'; msg.textContent = '✓ Face ID kaydedildi!';
+      setTimeout(showApp, 600);
+    } else {
+      const rawId = Uint8Array.from(atob(localStorage.getItem('rehber_cred_id')), c => c.charCodeAt(0));
+      await navigator.credentials.get({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type: 'public-key', id: rawId }],
+        userVerification: 'required', timeout: 30000
+      }});
+      msg.className = 'lock-msg ok'; msg.textContent = '✓ Face ID onaylandı!';
+      setTimeout(showApp, 400);
+    }
+  } catch(e) {
+    msg.className = 'lock-msg err';
+    msg.textContent = e.name === 'NotAllowedError' ? 'Face ID iptal edildi' : 'Face ID başarısız — PIN deneyin';
+    setTimeout(() => { msg.textContent = ''; }, 2200);
+  }
+}
+
+// ===== ROUTING =====
+function showSetup() {
+  document.getElementById('setupScreen').classList.add('visible');
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('visible');
+  buildNumpad('setupPad', setupDigit, setupDel);
+}
+function showLock() {
+  lockInput = '';
+  document.getElementById('setupScreen').classList.remove('visible');
+  document.getElementById('lockScreen').classList.remove('hidden');
+  document.getElementById('app').classList.remove('visible');
+  setDots('lockDots', 0);
+  document.getElementById('lockMsg').textContent = '';
+  document.getElementById('faceIdLabel').textContent = biometricRegistered ? 'Face ID ile Aç' : 'Face ID Kaydet & Aç';
+  buildNumpad('lockPad', lockDigit, lockDel);
+}
+function showApp() {
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('setupScreen').classList.remove('visible');
+  document.getElementById('tabBar').style.display = 'flex';
+  switchTab('contacts');
+}
+function lockApp() {
+  lockInput = '';
+  document.getElementById('tabBar').style.display = 'none';
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('notesTab').classList.remove('visible');
+  showLock();
+}
+
+// ===== TABS =====
+let currentTab = 'contacts';
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('app').classList.toggle('visible', tab === 'contacts');
+  document.getElementById('notesTab').classList.toggle('visible', tab === 'notes');
+  document.getElementById('tabContacts').classList.toggle('active', tab === 'contacts');
+  document.getElementById('tabNotes').classList.toggle('active', tab === 'notes');
+  if (tab === 'contacts') render();
+  if (tab === 'notes') renderNotes();
+}
+
+// ===== NOTES =====
+let notes = JSON.parse(localStorage.getItem('rehber_notes') || '[]');
+let editNoteId = null;
+
+function saveNoteData() { localStorage.setItem('rehber_notes', JSON.stringify(notes)); }
+
+function openNoteModal(id = null) {
+  editNoteId = id;
+  if (id !== null) {
+    const n = notes.find(x => x.id === id);
+    document.getElementById('noteInputTitle').value = n.title;
+    document.getElementById('noteInputBody').value = n.body;
+    document.getElementById('noteModalTitle').textContent = 'Notu Düzenle';
+  } else {
+    document.getElementById('noteInputTitle').value = '';
+    document.getElementById('noteInputBody').value = '';
+    document.getElementById('noteModalTitle').textContent = 'Yeni Not';
+  }
+  document.getElementById('noteOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('noteInputTitle').focus(), 100);
+}
+function closeNoteModal() {
+  document.getElementById('noteOverlay').classList.remove('open');
+  editNoteId = null;
+}
+function saveNote() {
+  const title = document.getElementById('noteInputTitle').value.trim();
+  const body = document.getElementById('noteInputBody').value.trim();
+  if (!title && !body) { alert('Başlık veya içerik giriniz!'); return; }
+  const now = new Date().toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  if (editNoteId !== null) {
+    const idx = notes.findIndex(x => x.id === editNoteId);
+    notes[idx] = { ...notes[idx], title: title || 'Başlıksız', body, date: now };
+  } else {
+    notes.unshift({ id: Date.now(), title: title || 'Başlıksız', body, date: now });
+  }
+  saveNoteData();
+  closeNoteModal();
+  renderNotes();
+}
+function deleteNote(id) {
+  if (!confirm('Bu not silinsin mi?')) return;
+  notes = notes.filter(x => x.id !== id);
+  saveNoteData();
+  renderNotes();
+}
+function renderNotes() {
+  const list = document.getElementById('notesList');
+  list.innerHTML = '';
+  if (!notes.length) {
+    list.innerHTML = `<div class="empty"><div class="icon">📄</div><p>Henüz not eklenmedi.</p></div>`;
+    return;
+  }
+  notes.forEach(n => {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    card.innerHTML = `
+      <div class="note-card-top">
+        <div>
+          <div class="note-title">${n.title}</div>
+          <div class="note-date">${n.date}</div>
+        </div>
+        <button class="note-del-btn" onclick="event.stopPropagation();deleteNote(${n.id})">🗑️</button>
+      </div>
+      <div class="note-preview">${n.body || '<em style="color:var(--border)">İçerik yok</em>'}</div>
+    `;
+    card.addEventListener('click', () => openNoteModal(n.id));
+    list.appendChild(card);
+  });
+}
+
+document.getElementById('noteOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeNoteModal(); });
+
+// ===== CONTACTS =====
+function openModal(id = null) {
+  editId = id;
+  if (id !== null) {
+    const c = contacts.find(x => x.id === id);
+    document.getElementById('fName').value = c.name;
+    document.getElementById('fPhone').value = c.phone;
+    document.getElementById('fEmail').value = c.email || '';
+    document.getElementById('fGroup').value = c.group;
+    document.getElementById('modalTitle').textContent = 'Kişiyi Düzenle';
+  } else {
+    ['fName','fPhone','fEmail'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('fGroup').value = 'Genel';
+    document.getElementById('modalTitle').textContent = 'Yeni Kişi';
+  }
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('fName').focus(), 100);
+}
+function closeModal() { document.getElementById('overlay').classList.remove('open'); editId = null; }
+function saveContact() {
+  const name = document.getElementById('fName').value.trim();
+  const phone = document.getElementById('fPhone').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+  const group = document.getElementById('fGroup').value;
+  if (!name || !phone) { alert('Ad ve telefon zorunlu!'); return; }
+  if (editId !== null) {
+    const idx = contacts.findIndex(x => x.id === editId);
+    contacts[idx] = { ...contacts[idx], name, phone, email, group };
+  } else {
+    contacts.push({ id: Date.now(), name, phone, email, group });
+  }
+  saveData(); closeModal(); render();
+}
+function deleteContact(id) {
+  if (!confirm('Bu kişi silinsin mi?')) return;
+  contacts = contacts.filter(x => x.id !== id);
+  saveData(); render();
+}
+
+function render() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = contacts.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
+  filtered.sort((a,b) => a.name.localeCompare(b.name, 'tr'));
+  document.getElementById('totalCount').textContent = contacts.length;
+  document.getElementById('favCount').textContent = contacts.filter(c => c.group === 'Favori').length;
+  document.getElementById('groupCount').textContent = new Set(contacts.map(c => c.group)).size;
+  const list = document.getElementById('contactList');
+  list.innerHTML = '';
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><div class="icon">👤</div><p>${q?'Sonuç bulunamadı.':'Henüz kişi eklenmedi.'}</p></div>`;
+    return;
+  }
+  let lastLetter = '';
+  filtered.forEach(c => {
+    const letter = c.name[0].toUpperCase();
+    if (letter !== lastLetter) {
+      const lbl = document.createElement('div');
+      lbl.className = 'section-label'; lbl.textContent = letter;
+      list.appendChild(lbl); lastLetter = letter;
+    }
+    const gc = GROUP_COLORS[c.group] || GROUP_COLORS['Genel'];
+    const col = colorFor(c.name);
+    const card = document.createElement('div');
+    card.className = 'contact-card';
+    card.innerHTML = `
+      <div class="avatar" style="background:${col}22;color:${col}">${initials(c.name)}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <a href="tel:${c.phone}" class="contact-phone" style="color:var(--muted);text-decoration:none;">${c.phone}</a>
+      </div>
+      <span class="contact-group" style="background:${gc.bg};color:${gc.text}">${c.group}</span>
+      <div class="contact-actions">
+        <a href="tel:${c.phone}" class="icon-btn call" title="Ara">📞</a>
+        <a href="https://wa.me/${c.phone.replace(/[\s\-\(\)]/g,'').replace(/^0/,'90')}" target="_blank" class="icon-btn wa" title="WhatsApp">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+        </a>
+        <button class="icon-btn" onclick="openModal(${c.id})" title="Düzenle">✏️</button>
+        <button class="icon-btn del" onclick="deleteContact(${c.id})" title="Sil">🗑️</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+document.getElementById('overlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && document.getElementById('overlay').classList.contains('open')) saveContact();
+});
+
+// ===== EXPORT =====
+function exportContacts() {
+  if (!contacts.length) { alert('Aktarılacak kişi bulunamadı!'); return; }
+
+  // Build vCard
+  const vcf = contacts.map(c => {
+    const nameParts = c.name.trim().split(' ');
+    const lastName = nameParts.length > 1 ? nameParts.pop() : '';
+    const firstName = nameParts.join(' ');
+    return [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `FN:${c.name}`,
+      `N:${lastName};${firstName};;;`,
+      `TEL;TYPE=CELL:${c.phone}`,
+      c.email ? `EMAIL:${c.email}` : '',
+      c.group ? `CATEGORIES:${c.group}` : '',
+      'END:VCARD'
+    ].filter(Boolean).join('\r\n');
+  }).join('\r\n');
+
+  const blob = new Blob([vcf], { type: 'text/vcard;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'rehber_kisiler.vcf';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ===== AUTO-LOCK =====
+// Uygulama arka plana geçince veya sekme/pencere gizlenince otomatik kilitle
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && document.getElementById('app').classList.contains('visible')) {
+    lockApp();
+  }
+});
+// Mobil: sayfa odağı kaybolunca (başka uygulamaya geçince)
+window.addEventListener('blur', () => {
+  if (document.getElementById('app').classList.contains('visible')) {
+    lockApp();
+  }
+});
+
+// ===== INIT =====
+storedPin ? showLock() : showSetup();
+</script>
+</body>
+</html>
